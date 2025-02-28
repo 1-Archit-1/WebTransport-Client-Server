@@ -1,4 +1,5 @@
 import asyncio
+import argparse
 from aioquic.asyncio import connect
 from aioquic.asyncio.protocol import QuicConnectionProtocol
 from aioquic.quic.configuration import QuicConfiguration
@@ -78,7 +79,7 @@ async def receive_media(protocol):
     session_id = protocol.make_session() 
     return session_id
     
-async def start_client():
+async def start_client(args):
     configuration = QuicConfiguration(
         is_client=True,
         alpn_protocols=H3_ALPN,
@@ -86,13 +87,24 @@ async def start_client():
     )
 
     #configuration.quic_logger = QuicFileLogger("client.log")
-    configuration.load_verify_locations('pycacert.pem')
-    async with connect("localhost", 4433, configuration=configuration, create_protocol=WebTransportClientProtocol) as protocol:
+    configuration.load_verify_locations(args.cert)
+    async with connect(args.host, args.port, configuration=configuration, create_protocol=WebTransportClientProtocol) as protocol:
         await protocol.wait_connected()
         session_id = await receive_media(protocol)
         await helloworld(protocol,session_id=session_id)
         await asyncio.sleep(20)
         
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="QUIC client")
+    parser.add_argument(
+        "--host", type=str, default="localhost", help="The host to connect to"
+    )
+    parser.add_argument(
+        "--port", type=int, default=4433, help="The port to connect to"
+    )
+    parser.add_argument(
+        "--cert", type=str, default="pycacert.pem", help="The certificate file"
+    )
+    args = parser.parse_args()
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(start_client())
+    loop.run_until_complete(start_client(args))

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import argparse
 from aioquic.asyncio import connect, serve
 from aioquic.asyncio.protocol import QuicConnectionProtocol
 from aioquic.quic.configuration import QuicConfiguration
@@ -66,11 +67,25 @@ class WebTransportServerProtocol(QuicConnectionProtocol):
             for http_event in self._http.handle_event(event):
                 self.http_event_received(http_event) 
 
-async def run_server():
+async def run_server(args):
     configuration = QuicConfiguration(is_client=False,alpn_protocols=H3_ALPN,max_datagram_frame_size=65536,)
-    configuration.load_cert_chain("ssl_cert.pem", "ssl_key.pem")
-    await serve("localhost", 4433, configuration=configuration, create_protocol=WebTransportServerProtocol)
+    configuration.load_cert_chain(args.cert, args.key)
+    await serve(args.host, args.port, configuration=configuration, create_protocol=WebTransportServerProtocol)
     await asyncio.Future()
 
 if __name__ == "__main__":
-    asyncio.run(run_server())
+    parser = argparse.ArgumentParser(description="QUIC server")
+    parser.add_argument(
+        "--host", type=str, default="localhost", help="The host to listen on"
+    )
+    parser.add_argument(
+        "--port", type=int, default=4433, help="The port to listen on"
+    )
+    parser.add_argument(
+        "--cert", type=str, default="ssl_cert.pem", help="The certificate file"
+    )
+    parser.add_argument(
+        "--key", type=str, default="ssl_key.pem", help="The private key file"
+    )
+    args = parser.parse_args()
+    asyncio.run(run_server(args))
